@@ -87,6 +87,16 @@ export default function FindBusinesses() {
                 <option value="true">Yes</option><option value="false">No</option>
               </select>
             </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Provider</label>
+              <select className="select" value={filters.provider || "osm"} onChange={(e) => setFilters({ ...filters, provider: e.target.value })}>
+                <option value="osm">OpenStreetMap (Free)</option>
+                <option value="google_places">Google Places (API Key)</option>
+              </select>
+              {filters.provider === "google_places" && (
+                <p className="text-xs text-gray-500 mt-1">Requires GOOGLE_PLACES_API_KEY in .env</p>
+              )}
+            </div>
           </div>
           <div className="pt-4">
             <Button loading={loading} type="submit">

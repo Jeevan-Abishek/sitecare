@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mail, Search } from "lucide-react";
+import { Mail, Search, Link } from "lucide-react";
 import { API, Business } from "../lib/api";
 import { Button } from "../components/ui";
 
@@ -55,11 +55,25 @@ export default function OutreachGenerator() {
             <div className="p-4 rounded bg-blue-50 border border-blue-200">
               <p className="text-xs font-semibold text-blue-800 uppercase mb-2">WhatsApp</p>
               <p className="text-sm text-gray-900 whitespace-pre-wrap">{outreach.whatsapp_message}</p>
+              {outreach.whatsapp_url && (
+                <div className="mt-3">
+                  <a href={outreach.whatsapp_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 underline">
+                    <Link size={14} /> Open WhatsApp (wa.me)
+                  </a>
+                </div>
+              )}
             </div>
             <div className="p-4 rounded bg-blue-50 border border-blue-200">
               <p className="text-xs font-semibold text-blue-800 uppercase mb-2">Email</p>
               <p className="text-sm font-medium text-gray-900">{outreach.email_subject}</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap mt-2">{outreach.email_body}</p>
+              {outreach.email_mailto && (
+                <div className="mt-3">
+                  <a href={outreach.email_mailto} className="inline-flex items-center gap-2 text-sm text-blue-600 underline">
+                    <Link size={14} /> Open Email Client (mailto)
+                  </a>
+                </div>
+              )}
             </div>
             <div className="p-4 rounded bg-green-50 border border-green-200">
               <p className="text-xs font-semibold text-green-800 uppercase mb-2">Proposal</p>

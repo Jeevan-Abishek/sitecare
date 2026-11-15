@@ -11,6 +11,23 @@ A complete, zero-budget, full-stack web application that discovers business webs
 5. **AI report generator** – Free, local rules-based report generator (default). Explains verified problems in simple language, recommends services, suggests a maintenance package. External LLM integration is optional and never required.
 6. **Outreach generator** – WhatsApp message, professional email, maintenance proposal, audit summary, follow-up message. Uses only publicly listed contact info. Never sends automatically.
 
+## Advanced Production Features
+
+7. **Google Places / Maps Discovery** – Optional Google Places API (New) provider alongside OpenStreetMap. Captures precise business names, phone numbers, addresses, and official websites. Configurable via `GOOGLE_PLACES_API_KEY`. Falls back gracefully when key is not configured.
+
+8. **Google PageSpeed Insights & Core Web Vitals** – Optional PageSpeed Insights integration fetches real mobile performance scores, SEO scores, and Core Web Vitals (LCP, CLS, TBT, FCP). Configurable via `GOOGLE_PAGESPEED_API_KEY`. Skipped gracefully when key is not configured.
+
+9. **Branded PDF Report Generator** – ReportLab-powered PDF reports with agency branding, audit summary, verified issues, performance metrics, Core Web Vitals, and technology stack. Downloadable via `GET /api/reports/{id}/pdf` and "Download PDF Report" buttons in the UI.
+
+10. **One-Click WhatsApp & Email Outreach** – Direct `wa.me` links with pre-filled message templates and `mailto` links with pre-filled subject/body. Messages are generated locally and never sent automatically. Optional SMTP support for direct email dispatch.
+
+11. **Tech Stack Detector** – Identifies CMS (WordPress, Shopify, Wix, Squarespace, Joomla, Drupal), e-commerce platforms, and frontend frameworks (React, Next.js, Vue, Angular) from HTML and headers. Falls back to "Custom HTML" when none detected.
+
+12. **Mobile Preview** – Responsive mobile simulator card in Lead Detail view showing how the target website renders on a mobile device.
+
+13. **Automated Uptime & SSL Expiry Monitor** – Background scheduler (APScheduler) periodically checks saved websites for uptime status and SSL certificate expiry. Dashboard badges flag sites that are down or have SSL expiring within the configured warning period (default 30 days) for retainer pitching.
+
+
 ## Tech stack
 
 - **Frontend:** React, TypeScript, Tailwind CSS, Lucide icons, React Router, Vite

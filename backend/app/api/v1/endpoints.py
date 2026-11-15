@@ -14,6 +14,7 @@ from app.security import validate_url, normalize_domain
 from app.discovery import get_discovery_provider
 from app.audit import audit_website
 from app.reports.generator import generate_report
+from app.reports import generate_pdf_report
 from app.outreach import generate_outreach
 from app.audit.scoring import priority_for_score, service_for_flags
 
@@ -34,7 +35,7 @@ def _startup():
 
 @router.post("/discover", response_model=schemas.DiscoveryResult)
 async def discover(filters: schemas.DiscoveryFilters, db: Session = Depends(get_db)):
-    provider = get_discovery_provider()
+    provider = get_discovery_provider(filters.provider or "osm")
     try:
         result = await provider.discover(filters)
     except RuntimeError as exc:
@@ -220,6 +221,22 @@ def get_report(business_id: int, provider: Optional[str] = "rules", db: Session 
     return generate_report(business, audit, provider=provider or "rules")
 
 
+@router.get("/reports/{business_id}/pdf")
+def download_pdf_report(business_id: int, db: Session = Depends(get_db)):
+    from fastapi.responses import Response
+    business = crud.get_business(db, business_id)
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    audits = crud.get_audits_for_business(db, business_id)
+    audit = audits[0] if audits else None
+    pdf_bytes = generate_pdf_report(business, audit)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=sitecare_audit_{business_id}.pdf"},
+    )
+
+
 # ---------- CSV export ----------
 
 @router.get("/export/csv")
@@ -261,3 +278,26 @@ def outreach_generate(req: schemas.OutreachGenerate, db: Session = Depends(get_d
     audits = crud.get_audits_for_business(db, req.business_id)
     audit = audits[0] if audits else None
     return generate_outreach(business, audit, req)
+
+
+# ---------- Uptime & SSL Monitor ----------
+
+@router.post("/monitor/check")
+def run_monitor_check_endpoint(db: Session = Depends(get_db)):
+    import asyncio
+    from app.monitor import run_monitor_check
+    asyncio.run(run_monitor_check())
+    return {"message": "Monitor check completed for all tracked websites"}
+
+
+@router.get("/monitor/status", response_model=list[schemas.MonitorOut])
+def monitor_status(db: Session = Depends(get_db)):
+    from app.monitor import get_monitor_dashboard
+    monitors = db.query(models.WebsiteMonitor).all()
+    return monitors
+
+
+@router.get("/monitor/dashboard")
+def monitor_dashboard(db: Session = Depends(get_db)):
+    from app.monitor import get_monitor_dashboard
+    return get_monitor_dashboard(db)

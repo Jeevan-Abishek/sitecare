@@ -207,6 +207,8 @@ def delete_lead(db: Session, lead_id: int) -> bool:
 
 
 def get_dashboard_stats(db: Session) -> schemas.DashboardStats:
+    from app.monitor import get_monitor_dashboard
+    mon = get_monitor_dashboard(db)
     return schemas.DashboardStats(
         total_businesses=count_businesses(db),
         websites_found=count_websites_found(db),
@@ -214,4 +216,6 @@ def get_dashboard_stats(db: Session) -> schemas.DashboardStats:
         websites_with_issues=count_websites_with_issues(db),
         high_priority_leads=count_high_priority_leads(db),
         potential_monthly_revenue=potential_monthly_revenue(db),
+        sites_down=mon.get("sites_down", 0),
+        ssl_expiring_soon=mon.get("ssl_expiring_soon", 0),
     )

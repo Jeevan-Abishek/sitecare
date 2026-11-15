@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import quote
 
 from app.schemas import OutreachGenerate, OutreachResult
 from app.models import Business, Audit
@@ -79,11 +80,26 @@ def generate_outreach(business: Business, audit: Audit | None, req: OutreachGene
             f"Audited: {audit.audit_date.strftime('%Y-%m-%d') if audit.audit_date else 'N/A'}"
         )
 
+    # Build direct action links
+    whatsapp_url = None
+    if whatsapp and business.phone:
+        # Strip non-digits from phone for wa.me
+        digits = "".join(c for c in business.phone if c.isdigit() or c == "+")
+        whatsapp_url = f"https://wa.me/{digits}?text={quote(whatsapp)}"
+
+    email_mailto = None
+    if email_body and business.email:
+        subject_quote = quote(email_subject or "Website Maintenance Audit")
+        body_quote = quote(email_body)
+        email_mailto = f"mailto:{business.email}?subject={subject_quote}&body={body_quote}"
+
     return OutreachResult(
         business_id=business.id,
         whatsapp_message=whatsapp,
+        whatsapp_url=whatsapp_url,
         email_subject=email_subject,
         email_body=email_body,
+        email_mailto=email_mailto,
         proposal=proposal,
         followup_message=followup,
         audit_summary=audit_summary,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Activity, Mail, FileText, ArrowLeft, Edit2, Save, Phone, MapPin, AtSign } from "lucide-react";
+import { Activity, Mail, FileText, ArrowLeft, Edit2, Save, Phone, MapPin, AtSign, Download, Link, Monitor, Smartphone } from "lucide-react";
 import { API, Lead } from "../lib/api";
 import { STATUS_COLOR, STATUS_LABELS } from "../lib/constants";
 import { Button } from "../components/ui";
@@ -13,6 +13,7 @@ export default function LeadDetail() {
   const [notes, setNotes] = useState("");
   const [outreach, setOutreach] = useState<any>(null);
   const [report, setReport] = useState<any>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const load = async () => {
     try {
@@ -62,6 +63,26 @@ export default function LeadDetail() {
     }
   };
 
+  const downloadPdf = async () => {
+    if (!lead) return;
+    setPdfLoading(true);
+    try {
+      const r = await API.downloadPdf(lead.business_id);
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sitecare_audit_${lead.business_id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e) {
+      alert("PDF download failed");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   if (loading) return <div className="p-4 text-gray-600">Loading...</div>;
   if (!lead) return <div className="p-4 text-gray-600">Lead not found.</div>;
 
@@ -76,15 +97,24 @@ export default function LeadDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 card">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-navy-900">{b?.business_name}</h2>
-            <p className="text-gray-600 mt-1">{b?.category} &middot; {b?.city}, {b?.state} {b?.country}</p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-navy-900">{b?.business_name}</h2>
+              <p className="text-gray-600 mt-1">{b?.category} &middot; {b?.city}, {b?.state} {b?.country}</p>
+            </div>
+            <Button onClick={downloadPdf} loading={pdfLoading} size="sm">
+              <Download size={16} className="mr-2" /> Download PDF
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase">Website</p>
-              <p className="text-gray-900 font-medium">{b?.website || "—"}</p>
+              {b?.website ? (
+                <a href={b.website} target="_blank" rel="noopener noreferrer" className="text-gray-900 font-medium underline">{b.website}</a>
+              ) : (
+                <p className="text-gray-900 font-medium">—</p>
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase">Phone</p>
@@ -97,6 +127,10 @@ export default function LeadDetail() {
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-500 uppercase">Address</p>
               <p className="text-gray-900 font-medium">{b?.address || "—"}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Discovery Source</p>
+              <p className="text-gray-900 font-medium">{b?.discovery_provider || "manual"}</p>
             </div>
           </div>
 
@@ -112,6 +146,27 @@ export default function LeadDetail() {
                   <div><p className="text-xs text-gray-500">SSL</p><p className="text-lg font-bold">{audit.ssl_status?.valid ? "Valid" : "Invalid"}</p></div>
                   <div><p className="text-xs text-gray-500">Confidence</p><p className="text-lg font-bold">{audit.audit_confidence}</p></div>
                 </div>
+
+                {audit.tech_stack && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Technology Stack</p>
+                    <div className="flex gap-2 flex-wrap mb-3">
+                      {audit.tech_stack.cms && (
+                        <span className="px-3 py-1 rounded bg-blue-50 text-blue-700 text-xs font-medium border border-blue-200">CMS: {audit.tech_stack.cms}</span>
+                      )}
+                      {audit.tech_stack.ecommerce && (
+                        <span className="px-3 py-1 rounded bg-green-50 text-green-700 text-xs font-medium border border-green-200">E-comm: {audit.tech_stack.ecommerce}</span>
+                      )}
+                      {audit.tech_stack.frontend && (
+                        <span className="px-3 py-1 rounded bg-purple-50 text-purple-700 text-xs font-medium border border-purple-200">Frontend: {audit.tech_stack.frontend}</span>
+                      )}
+                      {audit.tech_stack.indicators?.slice(0, 3).map((ind: string, i: number) => (
+                        <span key={i} className="px-3 py-1 rounded bg-gray-100 text-gray-700 text-xs border border-gray-200">{ind}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Verified Issues</p>
                   <ul className="text-sm text-gray-700 space-y-1">
@@ -126,6 +181,36 @@ export default function LeadDetail() {
               <p className="text-gray-500">No audit run yet.</p>
             )}
           </div>
+
+          {/* Mobile Preview Card */}
+          {b?.website && (
+            <div className="mt-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Mobile Preview</p>
+                <span className="text-xs text-gray-400">Simulator (responsive preview)</span>
+              </div>
+              <div className="flex items-end gap-4">
+                <div className="relative bg-black rounded-xl p-2 shadow-lg">
+                  <div className="flex justify-center gap-1 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-600" />
+                    <div className="w-2 h-2 rounded-full bg-gray-600" />
+                    <div className="w-2 h-2 rounded-full bg-gray-600" />
+                  </div>
+                  <iframe
+                    src={b.website}
+                    className="w-[375px] h-[667px] rounded-lg"
+                    title="Mobile preview"
+                    sandbox="allow-same-origin allow-scripts"
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <Monitor size={32} className="text-gray-400 mb-2" />
+                  <p className="text-xs text-gray-500">Desktop view available at: {b.website}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Note: Some sites may block iframe embedding (X-Frame-Options).</p>
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-1 space-y-4">
@@ -164,6 +249,9 @@ export default function LeadDetail() {
             <Button onClick={genReport} className="w-full text-left mb-2">
               <FileText size={16} className="mr-2" /> Generate Report
             </Button>
+            <Button onClick={downloadPdf} className="w-full text-left mb-2" loading={pdfLoading}>
+              <Download size={16} className="mr-2" /> Download PDF Report
+            </Button>
           </div>
         </div>
       </div>
@@ -175,11 +263,25 @@ export default function LeadDetail() {
             <div className="p-4 rounded bg-blue-50 border border-blue-200">
               <p className="text-xs font-semibold text-blue-800 uppercase mb-2">WhatsApp</p>
               <p className="text-sm text-gray-900 whitespace-pre-wrap">{outreach.whatsapp_message}</p>
+              {outreach.whatsapp_url && b?.phone && (
+                <div className="mt-3">
+                  <a href={outreach.whatsapp_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 underline">
+                    <Link size={14} /> Open WhatsApp (wa.me)
+                  </a>
+                </div>
+              )}
             </div>
             <div className="p-4 rounded bg-blue-50 border border-blue-200">
               <p className="text-xs font-semibold text-blue-800 uppercase mb-2">Email</p>
               <p className="text-sm font-medium text-gray-900">{outreach.email_subject}</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap mt-2">{outreach.email_body}</p>
+              {outreach.email_mailto && b?.email && (
+                <div className="mt-3">
+                  <a href={outreach.email_mailto} className="inline-flex items-center gap-2 text-sm text-blue-600 underline">
+                    <Link size={14} /> Open Email Client (mailto)
+                  </a>
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 p-4 rounded bg-green-50 border border-green-200">

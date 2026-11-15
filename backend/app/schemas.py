@@ -15,6 +15,8 @@ class BusinessBase(BaseModel):
     address: Optional[str] = None
     source_url: Optional[str] = None
     source: Optional[str] = "manual"
+    discovery_provider: Optional[str] = "manual"
+    google_place_id: Optional[str] = None
 
 
 class BusinessCreate(BusinessBase):
@@ -35,7 +37,11 @@ class AuditBase(BaseModel):
     http_status: Optional[int] = None
     response_time: Optional[str] = None
     ssl_status: Optional[dict] = None
+    ssl_expiry_date: Optional[str] = None
     performance_metrics: Optional[dict] = None
+    pagespeed_metrics: Optional[dict] = None
+    core_web_vitals: Optional[dict] = None
+    tech_stack: Optional[dict] = None
     verified_issues: Optional[list] = None
     score: Optional[int] = None
     audit_confidence: Optional[str] = None
@@ -91,6 +97,7 @@ class DiscoveryFilters(BaseModel):
     industry: Optional[str] = None
     website_available: bool = True
     limit: int = Field(default=50, ge=1, le=500)
+    provider: Optional[str] = "osm"  # osm | google_places
 
 
 class DiscoveredBusiness(BaseModel):
@@ -104,6 +111,8 @@ class DiscoveredBusiness(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     source_url: Optional[str] = None
+    discovery_provider: Optional[str] = "osm"
+    google_place_id: Optional[str] = None
 
 
 class DiscoveryResult(BaseModel):
@@ -119,6 +128,7 @@ class AuditRequest(BaseModel):
     website: str
     business_id: Optional[int] = None
     max_pages: Optional[int] = None
+    include_pagespeed: bool = False
 
 
 class AuditResult(BaseModel):
@@ -128,7 +138,11 @@ class AuditResult(BaseModel):
     reachable: bool
     response_time: str
     ssl_status: dict
+    ssl_expiry_date: Optional[str] = None
     performance_metrics: dict
+    pagespeed_metrics: Optional[dict] = None
+    core_web_vitals: Optional[dict] = None
+    tech_stack: Optional[dict] = None
     verified_issues: list
     score: int
     audit_confidence: str
@@ -168,8 +182,10 @@ class OutreachGenerate(BaseModel):
 class OutreachResult(BaseModel):
     business_id: int
     whatsapp_message: Optional[str] = None
+    whatsapp_url: Optional[str] = None  # wa.me direct link
     email_subject: Optional[str] = None
     email_body: Optional[str] = None
+    email_mailto: Optional[str] = None  # mailto link
     proposal: Optional[str] = None
     followup_message: Optional[str] = None
     audit_summary: Optional[str] = None
@@ -179,6 +195,7 @@ class OutreachResult(BaseModel):
 class ReportGenerate(BaseModel):
     business_id: int
     provider: Optional[str] = "rules"
+    format: Optional[str] = "html"  # html | pdf
 
 
 class ReportOut(BaseModel):
@@ -187,6 +204,7 @@ class ReportOut(BaseModel):
     report_body: str
     generated_at: datetime
     provider: str
+    pdf_url: Optional[str] = None
 
 
 # CSV import
@@ -204,6 +222,24 @@ class DashboardStats(BaseModel):
     websites_with_issues: int
     high_priority_leads: int
     potential_monthly_revenue: int
+    sites_down: int = 0
+    ssl_expiring_soon: int = 0
+
+
+# Monitoring
+class MonitorOut(BaseModel):
+    id: int
+    business_id: int
+    last_check: Optional[datetime]
+    uptime_status: Optional[str]
+    response_time_ms: Optional[float]
+    ssl_days_until_expiry: Optional[int]
+    ssl_expiring_soon: bool
+    site_down: bool
+    alert_sent: bool
+
+    class Config:
+        from_attributes = True
 
 
 # Generic message

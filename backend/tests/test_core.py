@@ -99,6 +99,7 @@ async def test_audit_healthy_website():
         text = html
         url = "https://example.com/"
         extensions = {}
+        headers = {}
 
         async def aread(self):
             return html.encode()

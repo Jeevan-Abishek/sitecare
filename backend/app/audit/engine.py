@@ -1,5 +1,6 @@
 import datetime as dt
 import re
+from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -21,6 +22,105 @@ LOREM_MARKERS = {"lorem ipsum", "dolor sit amet", "consectetur", "placeholder te
 
 def _parse_url(website: str) -> str:
     return website if re.match(r"^https?://", website, re.IGNORECASE) else "https://" + website
+
+
+def _detect_tech_stack(html: str, headers: dict) -> dict:
+    """Detect the technology stack of a website from HTML and headers."""
+    stack = {
+        "cms": None,
+        "ecommerce": None,
+        "frontend": None,
+        "indicators": [],
+    }
+    low_html = html.lower()
+
+    # CMS detection
+    if "wp-content" in low_html or "wordpress" in low_html or "wp-includes" in low_html:
+        stack["cms"] = "WordPress"
+        stack["indicators"].append("WordPress detected (wp-content/wp-includes)")
+    elif "shopify" in low_html or "myshopify" in low_html:
+        stack["ecommerce"] = "Shopify"
+        stack["indicators"].append("Shopify detected")
+    elif "wix.com" in low_html or "wixsite" in low_html:
+        stack["cms"] = "Wix"
+        stack["indicators"].append("Wix detected")
+    elif "squarespace" in low_html:
+        stack["cms"] = "Squarespace"
+        stack["indicators"].append("Squarespace detected")
+    elif "joomla" in low_html:
+        stack["cms"] = "Joomla"
+        stack["indicators"].append("Joomla detected")
+    elif "drupal" in low_html:
+        stack["cms"] = "Drupal"
+        stack["indicators"].append("Drupal detected")
+
+    # Frontend/framework detection
+    if "__next" in low_html or "next.js" in low_html or "_next/" in low_html:
+        stack["frontend"] = "Next.js"
+        stack["indicators"].append("Next.js detected")
+    elif "react" in low_html or "reactjs" in low_html:
+        stack["frontend"] = "React"
+        stack["indicators"].append("React detected")
+    elif "vue" in low_html:
+        stack["frontend"] = "Vue.js"
+        stack["indicators"].append("Vue.js detected")
+    elif "angular" in low_html:
+        stack["frontend"] = "Angular"
+        stack["indicators"].append("Angular detected")
+
+    # Server header
+    server = headers.get("server", "") or headers.get("Server", "")
+    if server:
+        stack["indicators"].append(f"Server: {server}")
+
+    # If nothing detected, mark as custom
+    if not stack["cms"] and not stack["ecommerce"] and not stack["frontend"]:
+        stack["frontend"] = "Custom HTML"
+        stack["indicators"].append("No framework/CMS detected - Custom HTML")
+
+    return stack
+
+
+async def _fetch_pagespeed(url: str, strategy: str = "mobile") -> Optional[dict]:
+    """Fetch PageSpeed Insights data if API key is configured."""
+    if not settings.GOOGLE_PAGESPEED_API_KEY:
+        return None
+    try:
+        api_url = (
+            f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+            f"?url={url}&strategy={strategy}&key={settings.GOOGLE_PAGESPEED_API_KEY}"
+        )
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(api_url)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+        lighthouse = data.get("lighthouseResult", {})
+        categories = lighthouse.get("categories", {})
+        audits = lighthouse.get("audits", {})
+
+        result = {
+            "strategy": strategy,
+            "performance_score": categories.get("performance", {}).get("score"),
+            "seo_score": categories.get("seo", {}).get("score"),
+            "best_practices_score": categories.get("best-practices", {}).get("score"),
+            "accessibility_score": categories.get("accessibility", {}).get("score"),
+            "first_contentful_paint": audits.get("first-contentful-paint", {}).get("numericValue"),
+            "largest_contentful_paint": audits.get("largest-contentful-paint", {}).get("numericValue"),
+            "cumulative_layout_shift": audits.get("cumulative-layout-shift", {}).get("numericValue"),
+            "total_blocking_time": audits.get("total-blocking-time", {}).get("numericValue"),
+            "speed_index": audits.get("speed-index", {}).get("numericValue"),
+        }
+        return result
+    except Exception:
+        return None
+
+
+def _extract_ssl_expiry(ssl_info: dict) -> Optional[str]:
+    """Extract SSL expiry date from SSL info if available."""
+    # httpx doesn't directly expose cert expiry; this is a placeholder
+    # that can be extended with ssl.SSLSocket.getpeercert() for real expiry
+    return None
 
 
 async def _fetch(client: httpx.AsyncClient, url: str, timeout=None) -> httpx.Response | None:
@@ -106,7 +206,11 @@ async def audit_website(website: str, max_pages: int = 10, max_depth: int = 2) -
         "response_time": "0s",
         "response_time_seconds": 0.0,
         "ssl_status": {"https": False, "valid": None, "details": None},
+        "ssl_expiry_date": None,
         "performance_metrics": {},
+        "pagespeed_metrics": None,
+        "core_web_vitals": None,
+        "tech_stack": None,
         "verified_issues": [],
         "score": 0,
         "audit_confidence": "low",
@@ -164,6 +268,10 @@ async def audit_website(website: str, max_pages: int = 10, max_depth: int = 2) -
 
         html = resp.text
         soup = BeautifulSoup(html, "html.parser")
+
+        # Tech stack detection
+        resp_headers = dict(resp.headers)
+        result["tech_stack"] = _detect_tech_stack(html, resp_headers)
 
         # Performance metrics
         result["performance_metrics"] = {
@@ -324,5 +432,17 @@ async def audit_website(website: str, max_pages: int = 10, max_depth: int = 2) -
         result["audit_confidence"] = "high" if crawled + 1 >= 2 else "medium"
     else:
         result["audit_confidence"] = "high"
+
+    # Optional PageSpeed Insights (mobile + desktop)
+    if result["reachable"]:
+        ps_mobile = await _fetch_pagespeed(url, strategy="mobile")
+        if ps_mobile:
+            result["pagespeed_metrics"] = ps_mobile
+            result["core_web_vitals"] = {
+                "LCP": ps_mobile.get("largest_contentful_paint"),
+                "CLS": ps_mobile.get("cumulative_layout_shift"),
+                "TBT": ps_mobile.get("total_blocking_time"),
+                "FCP": ps_mobile.get("first_contentful_paint"),
+            }
 
     return result

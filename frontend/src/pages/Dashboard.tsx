@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Building, Activity, Target, DollarSign, TrendingUp, AlertCircle
+  LayoutDashboard, Building, Activity, Target, DollarSign, TrendingUp, AlertCircle,
+  ShieldAlert, Globe, RefreshCw,
 } from "lucide-react";
 import { API, DashboardStats } from "../lib/api";
+import { Button } from "../components/ui";
 
 const Stat = ({ icon: Icon, label, value, delta, color }: any) => (
   <div className="card">
@@ -23,12 +25,28 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     total_businesses: 0, websites_found: 0, websites_audited: 0,
     websites_with_issues: 0, high_priority_leads: 0, potential_monthly_revenue: 0,
+    sites_down: 0, ssl_expiring_soon: 0,
   });
   const [recent, setRecent] = useState<any[]>([]);
+  const [monitorLoading, setMonitorLoading] = useState(false);
 
   useEffect(() => {
     API.listBusinesses({ limit: 6 }).then((r) => setRecent(r.data));
+    API.monitorDashboard().then((r) => setStats((s) => ({ ...s, sites_down: r.data.sites_down, ssl_expiring_soon: r.data.ssl_expiring_soon }))).catch(() => {});
   }, []);
+
+  const runMonitor = async () => {
+    setMonitorLoading(true);
+    try {
+      await API.runMonitorCheck();
+      const d = await API.monitorDashboard();
+      setStats((s) => ({ ...s, sites_down: d.data.sites_down, ssl_expiring_soon: d.data.ssl_expiring_soon }));
+    } catch (e) {
+      alert("Monitor check failed");
+    } finally {
+      setMonitorLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -44,6 +62,21 @@ export default function Dashboard() {
         <Stat icon={AlertCircle} label="With Verified Issues" value={stats.websites_with_issues} color="bg-red-50 text-red-600" />
         <Stat icon={Target} label="High-Priority Leads" value={stats.high_priority_leads} color="bg-orange-50 text-orange-600" />
         <Stat icon={DollarSign} label="Potential Monthly Revenue" value={`₹${stats.potential_monthly_revenue}`} color="bg-green-50 text-green-600" />
+        <Stat icon={Globe} label="Sites Down" value={stats.sites_down} color={stats.sites_down > 0 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"} />
+        <Stat icon={ShieldAlert} label="SSL Expiring Soon" value={stats.ssl_expiring_soon} color={stats.ssl_expiring_soon > 0 ? "bg-orange-50 text-orange-600" : "bg-green-50 text-green-600"} />
+      </div>
+
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-navy-900">Uptime & SSL Monitor</h2>
+          <Button onClick={runMonitor} loading={monitorLoading} size="sm">
+            <RefreshCw size={16} className="mr-2" /> Run Check Now
+          </Button>
+        </div>
+        <p className="text-sm text-gray-600 mb-3">
+          Automated monitoring checks saved websites for uptime and SSL expiry.
+          Sites down or SSL expiring within {30} days are flagged for retainer pitches.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -89,9 +122,10 @@ export default function Dashboard() {
         <div className="card">
           <h2 className="font-semibold text-navy-900 mb-4">Quick Start</h2>
           <ul className="space-y-3 text-sm text-gray-600">
-            <li className="flex items-center gap-2"><TrendingUp size={16} /> Discover businesses in Tamil Nadu via OpenStreetMap</li>
-            <li className="flex items-center gap-2"><Activity size={16} /> Audit websites for verified technical issues</li>
-            <li className="flex items-center gap-2"><Target size={16} /> Review qualified leads and outreach</li>
+            <li className="flex items-center gap-2"><TrendingUp size={16} /> Discover businesses via OpenStreetMap or Google Places</li>
+            <li className="flex items-center gap-2"><Activity size={16} /> Audit websites with PageSpeed & tech stack detection</li>
+            <li className="flex items-center gap-2"><Target size={16} /> Review qualified leads and generate outreach</li>
+            <li className="flex items-center gap-2"><ShieldAlert size={16} /> Monitor uptime & SSL expiry for retainer pitches</li>
           </ul>
         </div>
       </div>

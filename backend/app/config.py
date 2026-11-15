@@ -27,6 +27,24 @@ class Settings:
     # Rate limiting
     RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "60"))
     RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+    # Google APIs (optional, free tier)
+    GOOGLE_PLACES_API_KEY: str | None = os.getenv("GOOGLE_PLACES_API_KEY")
+    GOOGLE_PAGESPEED_API_KEY: str | None = os.getenv("GOOGLE_PAGESPEED_API_KEY")
+    # Monitoring
+    MONITOR_INTERVAL_MINUTES: int = int(os.getenv("MONITOR_INTERVAL_MINUTES", "1440"))
+    SSL_EXPIRY_WARNING_DAYS: int = int(os.getenv("SSL_EXPIRY_WARNING_DAYS", "30"))
+    # Branding
+    AGENCY_NAME: str = os.getenv("AGENCY_NAME", "SiteCare AI")
+    AGENCY_TAGLINE: str = os.getenv("AGENCY_TAGLINE", "Website Maintenance & Lead Generation")
+    AGENCY_EMAIL: str = os.getenv("AGENCY_EMAIL", "hello@sitecare.ai")
+    AGENCY_PHONE: str = os.getenv("AGENCY_PHONE", "")
+    AGENCY_WEBSITE: str = os.getenv("AGENCY_WEBSITE", "https://sitecare.ai")
+    # SMTP (optional, for direct email sending)
+    SMTP_HOST: str | None = os.getenv("SMTP_HOST")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str | None = os.getenv("SMTP_USER")
+    SMTP_PASS: str | None = os.getenv("SMTP_PASS")
+    SMTP_FROM: str | None = os.getenv("SMTP_FROM")
 
 
 @lru_cache
